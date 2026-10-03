@@ -13,6 +13,7 @@ export interface MockState {
 const STORAGE_KEY = 'carboniq_mock_state_v2';
 
 const defaultCompany = {
+  id: '6ac0fde9738ff0308b46e04c',
   _id: '6ac0fde9738ff0308b46e04c',
   name: 'Apex Global Logistics',
   industry: 'Logistics & Supply Chain',
@@ -28,6 +29,7 @@ const defaultCompany = {
 
 const defaultUsers = [
   {
+    id: '6ac0fde9738ff0308b46e04d',
     _id: '6ac0fde9738ff0308b46e04d',
     email: 'admin@carboniq.io',
     firstName: 'Sarah',
@@ -39,6 +41,7 @@ const defaultUsers = [
     isVerified: true
   },
   {
+    id: '6ac0fde9738ff0308b46e04e',
     _id: '6ac0fde9738ff0308b46e04e',
     email: 'analyst@carboniq.io',
     firstName: 'Marcus',
@@ -50,6 +53,7 @@ const defaultUsers = [
     isVerified: true
   },
   {
+    id: '6ac0fde9738ff0308b46e04f',
     _id: '6ac0fde9738ff0308b46e04f',
     email: 'operator@carboniq.io',
     firstName: 'David',

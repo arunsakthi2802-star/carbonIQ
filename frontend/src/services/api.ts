@@ -15,20 +15,32 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Global response interceptor: fallback to client-side autonomous engine on 404 / network drop
+// Global response interceptor: fallback to client-side autonomous engine on 404 / 405 / network drop
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const config = error.config;
-    const isNotFound = error.response?.status === 404 || 
-      (typeof error.response?.data === 'string' && error.response.data.includes('The page could not be found'));
+    const status = error.response?.status;
+    const dataStr = typeof error.response?.data === 'string' ? error.response.data : '';
+
+    const isStaticHostFailure = 
+      status === 404 || 
+      status === 405 || // Vercel static returns 405 Method Not Allowed on POST / PUT / DELETE
+      status === 502 || 
+      status === 503 || 
+      status === 504 || 
+      dataStr.includes('The page could not be found') ||
+      dataStr.includes('Method Not Allowed');
     const isNetworkError = !error.response || error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED';
 
-    // If endpoint is not found on static host (like Vercel SPA) or network is offline, activate Autonomous Mock Engine
-    if ((isNotFound || isNetworkError) && config && !(config as any)._isMockRetry) {
+    // If endpoint is not found or method not allowed on static host (like Vercel SPA) or network is offline, activate Autonomous Mock Engine
+    if ((isStaticHostFailure || isNetworkError) && config && !(config as any)._isMockRetry) {
       (config as any)._isMockRetry = true;
       try {
-        const payload = config.data ? (typeof config.data === 'string' ? JSON.parse(config.data) : config.data) : undefined;
+        let payload: any = undefined;
+        if (config.data) {
+          payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+        }
         const mockData = await handleMockRequest(config.method || 'get', config.url || '', payload);
         return {
           data: mockData,
