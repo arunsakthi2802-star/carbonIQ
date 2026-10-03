@@ -265,7 +265,19 @@ const defaultAuditLogs = [
 export const getMockState = (): MockState => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.activities) && parsed.activities.length >= 20) {
+        return {
+          activities: parsed.activities,
+          factors: Array.isArray(parsed.factors) && parsed.factors.length ? parsed.factors : defaultFactors,
+          scenarios: Array.isArray(parsed.scenarios) ? parsed.scenarios : defaultScenarios,
+          reports: Array.isArray(parsed.reports) ? parsed.reports : [],
+          users: Array.isArray(parsed.users) && parsed.users.length ? parsed.users : defaultUsers,
+          auditLogs: Array.isArray(parsed.auditLogs) && parsed.auditLogs.length ? parsed.auditLogs : defaultAuditLogs
+        };
+      }
+    }
   } catch (e) {}
 
   const state: MockState = {
@@ -288,7 +300,18 @@ export const saveMockState = (state: MockState) => {
 
 // Dispatcher that routes API calls to mock client when backend is not responding
 export const handleMockRequest = async (method: string, url: string, data?: any): Promise<any> => {
-  const cleanUrl = url.replace(/^\/api/, '');
+  let cleanUrl = url;
+  try {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const parsed = new URL(url);
+      cleanUrl = parsed.pathname + parsed.search;
+    }
+  } catch (e) {}
+
+  cleanUrl = cleanUrl.replace(/^\/?api\/?/, '/');
+  if (!cleanUrl.startsWith('/')) {
+    cleanUrl = '/' + cleanUrl;
+  }
   const state = getMockState();
 
   // 1. AUTH / LOGIN
@@ -374,19 +397,21 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
     let scope3 = 0;
     let baselineTotal = 0;
     let correctedTotal = 0;
-    const breakdown: Record<string, number> = {};
+    const byActivityKg: Record<string, number> = {};
 
     acts.forEach(a => {
       const base = a.baselineKg || 0;
       const corr = a.correctedKg || 0;
       baselineTotal += base;
       correctedTotal += corr;
-      breakdown[a.activityType] = (breakdown[a.activityType] || 0) + corr;
+      byActivityKg[a.activityType] = (byActivityKg[a.activityType] || 0) + corr;
 
       if (a.activityType === 'diesel') scope1 += corr;
       else if (a.activityType === 'electricity') scope2 += corr;
       else scope3 += corr;
     });
+
+    const breakdown: Record<string, number> = {};
 
     // If no activities for target period, fallback to benchmark defaults
     if (correctedTotal === 0) {
@@ -395,10 +420,14 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
       scope3 = 151990;
       correctedTotal = scope1 + scope2 + scope3;
       baselineTotal = 303312;
-      breakdown['electricity'] = scope2;
-      breakdown['diesel'] = scope1;
-      breakdown['road_freight'] = 64890;
-      breakdown['cotton'] = 87100;
+      breakdown['electricity'] = 33.9;
+      breakdown['diesel'] = 16.9;
+      breakdown['road_freight'] = 21.0;
+      breakdown['cotton'] = 28.2;
+    } else {
+      Object.keys(byActivityKg).forEach(act => {
+        breakdown[act] = Math.round((byActivityKg[act] / correctedTotal) * 1000) / 10;
+      });
     }
 
     const adjustment = correctedTotal - baselineTotal;
@@ -542,8 +571,21 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
     if (method.toLowerCase() === 'get') {
       const match = cleanUrl.match(/\/activity-entries\/([a-zA-Z0-9_-]+)/);
       if (match && match[1] && !match[1].includes('?')) {
-        const item = state.activities.find(a => a._id === match[1]);
-        return { success: true, data: item };
+        const item = state.activities.find(a => a._id === match[1]) || state.activities[0];
+        const factor = item.activityType === 'electricity' ? 0.82 : item.activityType === 'diesel' ? 2.68 : item.activityType === 'cotton' ? 5.90 : 0.14;
+        return {
+          success: true,
+          data: {
+            entry: item,
+            audit: {
+              formula: `${item.quantity} ${item.unit} × ${factor} kg CO2e/${item.unit}`,
+              emissionFactor: `${factor} kg CO2e/${item.unit}`,
+              factorSource: 'CEA Grid Database / GHG Protocol',
+              adjustmentPct: item.baselineKg ? ((item.correctedKg - item.baselineKg) / item.baselineKg) * 100 : 2.5
+            },
+            ...item
+          }
+        };
       }
 
       // Filter by period if passed
@@ -556,6 +598,7 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
       return {
         success: true,
         data: {
+          entries: filtered,
           activities: filtered,
           pagination: { total: filtered.length, page: 1, limit: 100, pages: 1 }
         }
@@ -564,22 +607,26 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
 
     if (method.toLowerCase() === 'post') {
       if (cleanUrl.includes('/bulk')) {
-        const rows = data.activities || [];
+        const rows = data.rows || data.activities || [];
+        const periodsSet = new Set<string>();
         const added = rows.map((r: any, idx: number) => {
-          const factor = r.activityType === 'electricity' ? 0.82 : r.activityType === 'diesel' ? 2.68 : r.activityType === 'cotton' ? 5.90 : 0.14;
-          const baseline = (r.quantity || 1) * factor;
+          const act = r.activityType || 'electricity';
+          const p = r.period || data.defaultPeriod || '2026-08';
+          periodsSet.add(p);
+          const factor = act === 'electricity' ? 0.82 : act === 'diesel' ? 2.68 : act === 'cotton' ? 5.90 : 0.14;
+          const baseline = (Number(r.quantity) || 1) * factor;
           return {
             _id: 'act-' + Date.now() + '-' + idx,
-            period: r.period || '2026-08',
-            activityType: r.activityType,
+            period: p,
+            activityType: act,
             facility: r.facility || 'BLR-HUB-01',
             supplierId: r.supplierId || 'SUP-01',
             department: r.department || 'Operations',
-            quantity: r.quantity,
+            quantity: Number(r.quantity) || 1,
             unit: r.unit || 'units',
             region: r.region || 'IN',
-            equipmentAgeYears: r.equipmentAgeYears || 3,
-            cargoWeightTons: r.cargoWeightTons || 0,
+            equipmentAgeYears: Number(r.equipmentAgeYears) || 3,
+            cargoWeightTons: Number(r.cargoWeightTons) || 0,
             baselineKg: baseline,
             correctedKg: Math.round(baseline * 1.025),
             createdAt: new Date().toISOString()
@@ -587,11 +634,19 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
         });
         state.activities = [...added, ...state.activities];
         saveMockState(state);
-        return { success: true, message: `Successfully imported ${added.length} activities`, data: { count: added.length } };
+        return {
+          success: true,
+          message: `Successfully imported ${added.length} activities`,
+          data: {
+            acceptedCount: added.length,
+            count: added.length,
+            affectedPeriods: Array.from(periodsSet).length ? Array.from(periodsSet) : [data.defaultPeriod || '2026-08']
+          }
+        };
       }
 
       const factor = data.activityType === 'electricity' ? 0.82 : data.activityType === 'diesel' ? 2.68 : data.activityType === 'cotton' ? 5.90 : 0.14;
-      const baseline = (data.quantity || 1) * factor;
+      const baseline = (Number(data.quantity) || 1) * factor;
       const newAct = {
         _id: 'act-' + Date.now(),
         period: data.period || '2026-08',
@@ -599,18 +654,40 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
         facility: data.facility || 'Primary Facility',
         supplierId: data.supplierId || 'Default Supplier',
         department: data.department || 'Operations',
-        quantity: data.quantity,
+        quantity: Number(data.quantity) || 0,
         unit: data.unit,
         region: data.region || 'IN',
-        equipmentAgeYears: data.equipmentAgeYears || 3,
-        cargoWeightTons: data.cargoWeightTons || 0,
+        equipmentAgeYears: Number(data.equipmentAgeYears) || 3,
+        cargoWeightTons: Number(data.cargoWeightTons) || 0,
         baselineKg: baseline,
-        correctedKg: Math.round(baseline * (1.0 + (data.equipmentAgeYears || 3) * 0.008)),
+        correctedKg: Math.round(baseline * (1.0 + (Number(data.equipmentAgeYears) || 3) * 0.008)),
         createdAt: new Date().toISOString()
       };
       state.activities.unshift(newAct);
       saveMockState(state);
-      return { success: true, message: 'Activity logged successfully', data: newAct };
+
+      const actsForPeriod = state.activities.filter(a => a.period === (data.period || '2026-08'));
+      let s1 = 0, s2 = 0, s3 = 0;
+      actsForPeriod.forEach(a => {
+        if (a.activityType === 'diesel') s1 += a.correctedKg || 0;
+        else if (a.activityType === 'electricity') s2 += a.correctedKg || 0;
+        else s3 += a.correctedKg || 0;
+      });
+
+      return {
+        success: true,
+        message: 'Activity logged successfully',
+        data: {
+          entry: newAct,
+          periodSummary: {
+            scope1Kg: s1,
+            scope2Kg: s2,
+            scope3Kg: s3,
+            totalKg: s1 + s2 + s3
+          },
+          ...newAct
+        }
+      };
     }
 
     if (method.toLowerCase() === 'delete') {
@@ -624,27 +701,34 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
   // 8. WHAT-IF SIMULATOR
   if (cleanUrl.startsWith('/whatif')) {
     if (cleanUrl === '/whatif' && method.toLowerCase() === 'post') {
-      const changes = data.changes || {};
+      const rawAdj = data?.adjustments || data?.changes || {};
+      const changes: Record<string, number> = {};
+      Object.keys(rawAdj).forEach(k => {
+        const val = Math.abs(Number(rawAdj[k]) || 0);
+        changes[k] = val <= 1 ? val * 100 : val;
+      });
+
       const baseTotal = 303312;
       const corrTotal = 308980;
       let savings = 0;
-      if (changes.electricity) savings += (104850 * Math.abs(changes.electricity)) / 100;
-      if (changes.diesel) savings += (52140 * Math.abs(changes.diesel)) / 100;
-      if (changes.road_freight) savings += (64890 * Math.abs(changes.road_freight)) / 100;
-      if (changes.cotton) savings += (87100 * Math.abs(changes.cotton)) / 100;
+      if (changes.electricity) savings += (104850 * changes.electricity) / 100;
+      if (changes.diesel) savings += (52140 * changes.diesel) / 100;
+      if (changes.road_freight) savings += (64890 * changes.road_freight) / 100;
+      if (changes.cotton) savings += (87100 * changes.cotton) / 100;
 
       const projTotal = Math.max(0, corrTotal - savings);
+      const projBase = Math.max(0, baseTotal - savings);
       return {
         success: true,
         data: {
-          period: data.period || '2026-08',
+          period: data?.period || '2026-08',
           currentBaselineTotalKg: baseTotal,
           currentCorrectedTotalKg: corrTotal,
-          projectedBaselineTotalKg: baseTotal - savings,
+          projectedBaselineTotalKg: projBase,
           projectedTotalKg: projTotal,
-          savingsKg: savings,
-          savingsTonnes: savings / 1000,
-          reductionPct: (savings / corrTotal) * 100,
+          savingsKg: Math.round(savings),
+          savingsTonnes: Math.round((savings / 1000) * 100) / 100,
+          reductionPct: Math.round(((savings / corrTotal) * 100) * 100) / 100,
           leversApplied: changes
         }
       };
@@ -773,21 +857,48 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
   }
 
   // 13. ADMIN / USERS & AUDIT LOGS
-  if (cleanUrl.startsWith('/admin')) {
-    if (cleanUrl.includes('/users')) {
-      if (method.toLowerCase() === 'get') return { success: true, data: state.users };
+  if (cleanUrl.startsWith('/admin') || cleanUrl.startsWith('/users')) {
+    if (cleanUrl.includes('/users') || cleanUrl.startsWith('/users')) {
+      if (method.toLowerCase() === 'get') {
+        const idMatch = cleanUrl.match(/\/users\/([a-zA-Z0-9_-]+)/);
+        if (idMatch && idMatch[1] && !idMatch[1].includes('?')) {
+          const u = state.users.find(x => x._id === idMatch[1]) || state.users[0];
+          return { success: true, data: u };
+        }
+        return { success: true, data: state.users };
+      }
       if (method.toLowerCase() === 'post') {
+        if (cleanUrl.includes('/verify')) {
+          const id = cleanUrl.split('/')[2];
+          const u = state.users.find(x => x._id === id);
+          if (u) u.isVerified = true;
+          saveMockState(state);
+          return { success: true, message: 'User verified', data: u };
+        }
         const u = { _id: 'user-' + Date.now(), ...data, isVerified: true, status: 'active' };
         state.users.push(u);
         saveMockState(state);
-        return { success: true, data: u };
+        return { success: true, message: 'User created successfully', data: u };
       }
-      if (method.toLowerCase() === 'patch') {
-        const id = cleanUrl.split('/')[3];
+      if (method.toLowerCase() === 'patch' || method.toLowerCase() === 'put') {
+        const parts = cleanUrl.split('/');
+        const id = parts[cleanUrl.includes('/admin/users') ? 3 : 2];
         const u = state.users.find(x => x._id === id);
-        if (u && data.role) u.role = data.role;
+        if (u) {
+          if (data.role) u.role = data.role;
+          if (data.firstName) u.firstName = data.firstName;
+          if (data.lastName) u.lastName = data.lastName;
+          if (data.department) u.department = data.department;
+          if (data.status) u.status = data.status;
+          saveMockState(state);
+        }
+        return { success: true, message: 'User updated successfully', data: u };
+      }
+      if (method.toLowerCase() === 'delete') {
+        const id = cleanUrl.split('/').pop();
+        state.users = state.users.filter(x => x._id !== id);
         saveMockState(state);
-        return { success: true, data: u };
+        return { success: true, message: 'User deleted successfully' };
       }
     }
     if (cleanUrl.includes('/audit-logs')) {

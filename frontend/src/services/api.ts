@@ -15,9 +15,43 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Global response interceptor: fallback to client-side autonomous engine on 404 / 405 / network drop
+// Global response interceptor: fallback to client-side autonomous engine on 404 / 405 / network drop / SPA HTML rewrite
 api.interceptors.response.use(
-  (response) => response,
+  async (response) => {
+    // Intercept when static host SPA rewrite returned index.html as a 200 OK string for /api/*
+    let isHtmlOrStaticRewrite = false;
+    const contentType = String(response.headers?.['content-type'] || '').toLowerCase();
+
+    if (typeof response.data === 'string') {
+      const trimmed = response.data.trim().toLowerCase();
+      if (
+        trimmed.startsWith('<!doctype') ||
+        trimmed.startsWith('<html') ||
+        trimmed.startsWith('<!doctype html') ||
+        response.data.includes('<div id="root">') ||
+        response.data.includes('Vite + React') ||
+        contentType.includes('text/html')
+      ) {
+        isHtmlOrStaticRewrite = true;
+      }
+    }
+
+    if (isHtmlOrStaticRewrite && response.config && !(response.config as any)._isMockRetry) {
+      (response.config as any)._isMockRetry = true;
+      try {
+        let payload: any = undefined;
+        if (response.config.data) {
+          payload = typeof response.config.data === 'string' ? JSON.parse(response.config.data) : response.config.data;
+        }
+        const mockData = await handleMockRequest(response.config.method || 'get', response.config.url || '', payload);
+        response.data = mockData;
+        return response;
+      } catch (err) {
+        console.error('Failed to resolve HTML response via autonomous store:', err);
+      }
+    }
+    return response;
+  },
   async (error) => {
     const config = error.config;
     const status = error.response?.status;
