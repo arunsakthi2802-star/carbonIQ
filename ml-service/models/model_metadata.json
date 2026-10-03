@@ -1,0 +1,30 @@
+{
+  "modelVersion": "1.0.0",
+  "modelName": "CarbonIQ-XGBoost-Regressor",
+  "trainedAt": "2026-10-03T12:19:14.654634Z",
+  "datasetType": "Synthetic Operational Ground Truth (Reproducible)",
+  "trainingRows": 1600,
+  "testRows": 400,
+  "r2": 0.9967,
+  "mae": 470.97,
+  "rmse": 754.63,
+  "features": [
+    "baselineKg",
+    "activityCode",
+    "regionCode",
+    "seasonCode",
+    "equipmentAgeYears",
+    "quantity",
+    "cargoWeightTons"
+  ],
+  "featureImportances": {
+    "baselineKg": 51.62,
+    "activityCode": 15.12,
+    "regionCode": 0.62,
+    "seasonCode": 0.27,
+    "equipmentAgeYears": 0.75,
+    "quantity": 26.91,
+    "cargoWeightTons": 4.72
+  },
+  "status": "Production Ready"
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "companyName": "Acme Global Manufacturing Ltd.",
+    "industry": "Automotive & Industrial Supply",
+    "country": "India",
+    "email": "admin@acme.com",
+    "role": "admin",
+    "description": "Tier-1 automotive component manufacturer with 4 regional fabrication and assembly plants."
+  },
+  {
+    "companyName": "EcoLogix Freight & Logistics",
+    "industry": "Transportation & Supply Chain",
+    "country": "India",
+    "email": "operations@ecologix.in",
+    "role": "admin",
+    "description": "Intermodal freight carrier operating over 250 heavy commercial vehicles across major freight corridors."
+  },
+  {
+    "companyName": "Apex Textiles & Apparel Group",
+    "industry": "Apparel & Raw Materials",
+    "country": "India",
+    "email": "sustainability@apextextiles.com",
+    "role": "admin",
+    "description": "Textile spinning and garment assembly enterprise tracking Scope 3 upstream cotton cultivation."
+  }
+]

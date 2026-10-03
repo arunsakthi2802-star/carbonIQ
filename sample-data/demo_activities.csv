@@ -1,0 +1,13 @@
+period,activityType,quantity,unit,region,equipmentAgeYears,cargoWeightTons,supplierId,facility,department,notes
+2026-08,electricity,24500,kWh,IN,5,0,SUP-ENERGY-88,Bengaluru Tech Hub,Operations,Grid power main data center
+2026-08,diesel,2800,litre,IN,12,0,SUP-GLOBAL-101,Chennai SCM Center,Backup Power,Diesel genset backup power
+2026-08,road_freight,680,km,IN,8,18.5,SUP-LOGISTICS-404,Mumbai Port Facility,Logistics,Interstate container freight
+2026-08,cotton,1850,kg,IN,4,0,SUP-TEXTILE-77,Pune Assembly Plant,Procurement,Raw cotton yarn consignment
+2026-07,electricity,26000,kWh,IN,5,0,SUP-ENERGY-88,Bengaluru Tech Hub,Operations,Summer peak cooling grid draw
+2026-07,diesel,2500,litre,IN,11,0,SUP-GLOBAL-101,Chennai SCM Center,Fleet Logistics,Captive delivery fleet
+2026-07,road_freight,720,km,IN,7,20.0,SUP-LOGISTICS-404,Mumbai Port Facility,Logistics,Raw materials interstate freight
+2026-07,cotton,1900,kg,IN,4,0,SUP-TEXTILE-77,Pune Assembly Plant,Procurement,Textile raw materials
+2026-06,electricity,27500,kWh,IN,5,0,SUP-ENERGY-88,Bengaluru Tech Hub,Operations,Facility grid electricity
+2026-06,diesel,2650,litre,IN,11,0,SUP-GLOBAL-101,Chennai SCM Center,Operations,Stationary diesel combustion
+2026-06,road_freight,610,km,IN,8,16.0,SUP-LOGISTICS-404,Mumbai Port Facility,Logistics,Outbound customer freight
+2026-06,cotton,1750,kg,IN,3,0,SUP-TEXTILE-77,Pune Assembly Plant,Procurement,Cotton fabric procurement
