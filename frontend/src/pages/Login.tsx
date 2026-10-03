@@ -19,8 +19,8 @@ export const Login: React.FC = () => {
 
   const handleQuickDemoFill = () => {
     setIsRegister(false);
-    setEmail('chief_sustainability@acme.com');
-    setPassword('SecurePassword2026!');
+    setEmail('admin@carboniq.io');
+    setPassword('admin123');
     setError(null);
   };
 
@@ -46,7 +46,14 @@ export const Login: React.FC = () => {
         navigate('/app/dashboard');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Authentication failed. Please check your credentials.');
+      const msg = err.response?.data?.error?.message;
+      if (typeof msg === 'string') {
+        setError(msg);
+      } else if (typeof err.response?.data === 'string' && !err.response.data.includes('<') && !err.response.data.includes('NOT_FOUND') && !err.response.data.includes('The page could not be found')) {
+        setError(err.response.data);
+      } else {
+        setError('Invalid credentials. Please use demo account admin@carboniq.io / admin123');
+      }
     } finally {
       setLoading(false);
     }
@@ -84,7 +91,7 @@ export const Login: React.FC = () => {
             className="w-full mb-6 py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-center hover:border-emerald-400/50 transition-all shadow-sm"
           >
             <Sparkles className="w-3.5 h-3.5 mr-2 text-cyan-400" />
-            Fill Demo Credentials (1-Click)
+            Fill Demo Credentials (admin@carboniq.io)
           </button>
 
           {/* Tab Selector */}
