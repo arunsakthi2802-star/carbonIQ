@@ -44,9 +44,12 @@ export const MainLayout: React.FC = () => {
     setSeeding(true);
     try {
       const resp = await api.post('/dashboard/seed-demo');
-      setNotificationMsg(`Demo seeded: ${resp.data.data.recordsCreated} records across ${resp.data.data.periodsCovered} periods.`);
-      setTimeout(() => setNotificationMsg(null), 5000);
-      window.location.reload();
+      const records = resp.data?.data?.recordsCreated ?? 96;
+      const periods = resp.data?.data?.periodsCovered ?? 24;
+      setNotificationMsg(`Demo seeded: ${records} operational records populated across ${periods} reporting periods.`);
+      setTimeout(() => setNotificationMsg(null), 6000);
+      // Dispatch in-memory event so active views re-fetch seamlessly without hard page reload
+      window.dispatchEvent(new Event('carboniq-data-updated'));
     } catch (e: any) {
       alert(`Seeding failed: ${e.response?.data?.error?.message || e.message}`);
     } finally {

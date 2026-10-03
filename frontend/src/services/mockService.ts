@@ -10,7 +10,7 @@ export interface MockState {
   auditLogs: any[];
 }
 
-const STORAGE_KEY = 'carboniq_mock_state_v1';
+const STORAGE_KEY = 'carboniq_mock_state_v2';
 
 const defaultCompany = {
   _id: '6ac0fde9738ff0308b46e04c',
@@ -109,104 +109,104 @@ const defaultFactors = [
   }
 ];
 
-const defaultActivities = [
-  {
-    _id: 'act-001',
-    period: '2026-08',
-    activityType: 'electricity',
-    facility: 'BLR-HUB-01',
-    supplierId: 'BESCOM-GRID',
-    department: 'Warehousing & Operations',
-    quantity: 125000,
-    unit: 'kWh',
-    region: 'IN',
-    equipmentAgeYears: 3,
-    cargoWeightTons: 0,
-    baselineKg: 102500,
-    correctedKg: 104850,
-    createdAt: new Date().toISOString()
-  },
-  {
-    _id: 'act-002',
-    period: '2026-08',
-    activityType: 'diesel',
-    facility: 'BLR-HUB-01',
-    supplierId: 'IOCL-DEPOT',
-    department: 'Fleet Transport',
-    quantity: 18400,
-    unit: 'L',
-    region: 'IN',
-    equipmentAgeYears: 6,
-    cargoWeightTons: 120,
-    baselineKg: 49312,
-    correctedKg: 52140,
-    createdAt: new Date().toISOString()
-  },
-  {
-    _id: 'act-003',
-    period: '2026-08',
-    activityType: 'road_freight',
-    facility: 'MUM-CORRIDOR',
-    supplierId: 'TCI-LOGISTICS',
-    department: 'Inbound Logistics',
-    quantity: 450000,
-    unit: 't-km',
-    region: 'IN',
-    equipmentAgeYears: 4,
-    cargoWeightTons: 350,
-    baselineKg: 63000,
-    correctedKg: 64890,
-    createdAt: new Date().toISOString()
-  },
-  {
-    _id: 'act-004',
-    period: '2026-08',
-    activityType: 'cotton',
-    facility: 'TEX-SPINNING-02',
-    supplierId: 'VARDHMAN-TEXTILES',
-    department: 'Raw Materials Sourcing',
-    quantity: 15000,
-    unit: 'kg',
-    region: 'IN',
-    equipmentAgeYears: 2,
-    cargoWeightTons: 15,
-    baselineKg: 88500,
-    correctedKg: 87100,
-    createdAt: new Date().toISOString()
-  },
-  {
-    _id: 'act-005',
-    period: '2026-07',
-    activityType: 'electricity',
-    facility: 'BLR-HUB-01',
-    supplierId: 'BESCOM-GRID',
-    department: 'Warehousing & Operations',
-    quantity: 118000,
-    unit: 'kWh',
-    region: 'IN',
-    equipmentAgeYears: 3,
-    cargoWeightTons: 0,
-    baselineKg: 96760,
-    correctedKg: 98200,
-    createdAt: new Date().toISOString()
-  },
-  {
-    _id: 'act-006',
-    period: '2026-07',
-    activityType: 'diesel',
-    facility: 'BLR-HUB-01',
-    supplierId: 'IOCL-DEPOT',
-    department: 'Fleet Transport',
-    quantity: 19200,
-    unit: 'L',
-    region: 'IN',
-    equipmentAgeYears: 6,
-    cargoWeightTons: 130,
-    baselineKg: 51456,
-    correctedKg: 54300,
-    createdAt: new Date().toISOString()
+// Helper to generate full 24 months of realistic operational supply chain records
+export const generate24MonthData = () => {
+  const activities: any[] = [];
+  const baseDate = new Date(2026, 7, 1); // 2026-08
+
+  for (let i = 23; i >= 0; i--) {
+    const d = new Date(baseDate.getFullYear(), baseDate.getMonth() - i, 1);
+    const p = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const monthNum = d.getMonth() + 1;
+    const isSummer = [5, 6, 7].includes(monthNum);
+    const isWinter = [11, 12, 1].includes(monthNum);
+
+    // Efficiency improvement trend over 2 years (older periods had slightly higher emissions)
+    const factorTrend = 1.0 + (i * 0.007);
+
+    // 1. Electricity (Scope 2)
+    const elecKwh = Math.round((isSummer ? 135000 : 120000) * factorTrend);
+    const elecBase = elecKwh * 0.82;
+    activities.push({
+      _id: `act-elec-${p}`,
+      period: p,
+      activityType: 'electricity',
+      facility: 'BLR-HUB-01',
+      supplierId: 'BESCOM-GRID',
+      department: 'Warehousing & Operations',
+      quantity: elecKwh,
+      unit: 'kWh',
+      region: 'IN',
+      equipmentAgeYears: 3,
+      cargoWeightTons: 0,
+      baselineKg: elecBase,
+      correctedKg: Math.round(elecBase * 1.023),
+      createdAt: new Date(d.getTime() + 1000 * 3600 * 24 * 15).toISOString()
+    });
+
+    // 2. Diesel (Scope 1)
+    const dieselL = Math.round((isWinter ? 19500 : 18000) * factorTrend);
+    const dieselBase = dieselL * 2.68;
+    activities.push({
+      _id: `act-diesel-${p}`,
+      period: p,
+      activityType: 'diesel',
+      facility: 'BLR-HUB-01',
+      supplierId: 'IOCL-DEPOT',
+      department: 'Fleet Transport',
+      quantity: dieselL,
+      unit: 'L',
+      region: 'IN',
+      equipmentAgeYears: 6,
+      cargoWeightTons: 120,
+      baselineKg: dieselBase,
+      correctedKg: Math.round(dieselBase * 1.057),
+      createdAt: new Date(d.getTime() + 1000 * 3600 * 24 * 16).toISOString()
+    });
+
+    // 3. Road Freight (Scope 3)
+    const freightTkm = Math.round((430000 + (monthNum % 4) * 15000) * factorTrend);
+    const freightBase = freightTkm * 0.14;
+    activities.push({
+      _id: `act-freight-${p}`,
+      period: p,
+      activityType: 'road_freight',
+      facility: 'MUM-CORRIDOR',
+      supplierId: 'TCI-LOGISTICS',
+      department: 'Inbound Logistics',
+      quantity: freightTkm,
+      unit: 't-km',
+      region: 'IN',
+      equipmentAgeYears: 4,
+      cargoWeightTons: 350,
+      baselineKg: freightBase,
+      correctedKg: Math.round(freightBase * 1.03),
+      createdAt: new Date(d.getTime() + 1000 * 3600 * 24 * 18).toISOString()
+    });
+
+    // 4. Raw Cotton (Scope 3)
+    const cottonKg = Math.round((14000 + (monthNum % 3) * 1000) * factorTrend);
+    const cottonBase = cottonKg * 5.90;
+    activities.push({
+      _id: `act-cotton-${p}`,
+      period: p,
+      activityType: 'cotton',
+      facility: 'TEX-SPINNING-02',
+      supplierId: 'VARDHMAN-TEXTILES',
+      department: 'Raw Materials Sourcing',
+      quantity: cottonKg,
+      unit: 'kg',
+      region: 'IN',
+      equipmentAgeYears: 2,
+      cargoWeightTons: 15,
+      baselineKg: cottonBase,
+      correctedKg: Math.round(cottonBase * 0.984),
+      createdAt: new Date(d.getTime() + 1000 * 3600 * 24 * 20).toISOString()
+    });
   }
-];
+
+  return activities;
+};
 
 const defaultScenarios = [
   {
@@ -265,7 +265,7 @@ export const getMockState = (): MockState => {
   } catch (e) {}
 
   const state: MockState = {
-    activities: defaultActivities,
+    activities: generate24MonthData(),
     factors: defaultFactors,
     scenarios: defaultScenarios,
     reports: [],
@@ -289,8 +289,7 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
 
   // 1. AUTH / LOGIN
   if (cleanUrl === '/auth/login' && method.toLowerCase() === 'post') {
-    const { email, password } = data || {};
-    // Accept admin@carboniq.io or any demo user or any valid format
+    const { email } = data || {};
     let matchedUser = state.users.find(u => u.email.toLowerCase() === (email || '').toLowerCase().trim());
     if (!matchedUser) {
       matchedUser = {
@@ -362,70 +361,175 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
 
   // 4. DASHBOARD / SUMMARY
   if (cleanUrl.startsWith('/dashboard/summary')) {
-    const acts = state.activities.filter(a => a.period === '2026-08');
+    const match = cleanUrl.match(/period=([0-9]{4}-[0-9]{2})/);
+    const targetPeriod = match ? match[1] : '2026-08';
+
+    const acts = state.activities.filter(a => a.period === targetPeriod);
     let scope1 = 0;
     let scope2 = 0;
     let scope3 = 0;
     let baselineTotal = 0;
     let correctedTotal = 0;
+    const breakdown: Record<string, number> = {};
 
     acts.forEach(a => {
-      baselineTotal += a.baselineKg || 0;
-      correctedTotal += a.correctedKg || 0;
-      if (a.activityType === 'diesel') scope1 += a.correctedKg || 0;
-      else if (a.activityType === 'electricity') scope2 += a.correctedKg || 0;
-      else scope3 += a.correctedKg || 0;
+      const base = a.baselineKg || 0;
+      const corr = a.correctedKg || 0;
+      baselineTotal += base;
+      correctedTotal += corr;
+      breakdown[a.activityType] = (breakdown[a.activityType] || 0) + corr;
+
+      if (a.activityType === 'diesel') scope1 += corr;
+      else if (a.activityType === 'electricity') scope2 += corr;
+      else scope3 += corr;
     });
+
+    // If no activities for target period, fallback to benchmark defaults
+    if (correctedTotal === 0) {
+      scope1 = 52140;
+      scope2 = 104850;
+      scope3 = 151990;
+      correctedTotal = scope1 + scope2 + scope3;
+      baselineTotal = 303312;
+      breakdown['electricity'] = scope2;
+      breakdown['diesel'] = scope1;
+      breakdown['road_freight'] = 64890;
+      breakdown['cotton'] = 87100;
+    }
+
+    const adjustment = correctedTotal - baselineTotal;
+    const adjustmentPct = baselineTotal > 0 ? (adjustment / baselineTotal) * 100 : 0;
+
+    const summaryObj = {
+      _id: `calc-${targetPeriod}`,
+      period: targetPeriod,
+      scope1Kg: scope1,
+      scope2Kg: scope2,
+      scope3Kg: scope3,
+      totalKg: correctedTotal,
+      baselineTotalKg: baselineTotal,
+      correctedTotalKg: correctedTotal,
+      adjustmentKg: adjustment,
+      adjustmentPct: Math.round(adjustmentPct * 100) / 100,
+      breakdown,
+      activityCount: acts.length || 4,
+      modelVersion: '1.0.0-xgb-shap'
+    };
 
     return {
       success: true,
       data: {
-        currentPeriod: '2026-08',
-        baselineTotalKg: baselineTotal,
-        correctedTotalKg: correctedTotal,
-        adjustmentKg: correctedTotal - baselineTotal,
-        adjustmentPct: baselineTotal > 0 ? ((correctedTotal - baselineTotal) / baselineTotal) * 100 : 0,
-        scope1Kg: scope1,
-        scope2Kg: scope2,
-        scope3Kg: scope3,
-        totalKg: correctedTotal,
-        activityCount: acts.length,
-        modelConfidence: {
-          lowerKg: Math.round(correctedTotal * 0.95),
-          upperKg: Math.round(correctedTotal * 1.05),
-          confidencePercent: 95.0
+        period: targetPeriod,
+        summary: summaryObj,
+        comparison: {
+          previousPeriod: '2026-07',
+          previousTotalKg: 297656,
+          changePct: 3.8,
+          direction: 'increase'
         },
-        topDrivers: [
-          { feature: 'quantity', label: 'Activity Volume (Throughput)', contribution: 3200, direction: 'positive', plainLanguage: 'High facility load added +3.2 t CO2e.' },
-          { feature: 'equipmentAgeYears', label: 'Equipment & Vehicle Degradation', contribution: 1850, direction: 'positive', plainLanguage: 'Fleet age caused an operational overhead of +1.85 t CO2e.' },
-          { feature: 'supplierEfficiency', label: 'Supplier Decarbonization Efficiency', contribution: -950, direction: 'negative', plainLanguage: 'Supplier renewable spinning reduced emissions by -0.95 t CO2e.' }
-        ]
+        explainability: {
+          _id: `shap-${targetPeriod}`,
+          period: targetPeriod,
+          explainerType: 'TreeSHAP (Exact TreeExplainer)',
+          topFactors: [
+            {
+              feature: 'quantity',
+              label: 'Activity Volume (Throughput)',
+              contribution: 3200,
+              contributionPct: 56.4,
+              direction: 'positive',
+              plainLanguage: 'High warehouse throughput and road freight volume added +3.2 t CO2e to emissions.',
+              rank: 1
+            },
+            {
+              feature: 'equipmentAgeYears',
+              label: 'Equipment & Vehicle Degradation',
+              contribution: 1850,
+              contributionPct: 32.6,
+              direction: 'positive',
+              plainLanguage: 'Fleet age (6 years) and older diesel combustion caused an operational overhead of +1.85 t CO2e.',
+              rank: 2
+            },
+            {
+              feature: 'supplierEfficiency',
+              label: 'Supplier Decarbonization Efficiency',
+              contribution: -950,
+              contributionPct: -16.8,
+              direction: 'negative',
+              plainLanguage: 'Supplier renewable spinning reduced supply chain footprint by -0.95 t CO2e.',
+              rank: 3
+            }
+          ]
+        },
+        insights: {
+          summary: `Operational carbon analysis for ${targetPeriod} shows a +${Math.abs(adjustmentPct).toFixed(1)}% operational overhead driven by engine fleet aging and regional grid carbon intensity.`,
+          keyFindings: [
+            'Scope 2 electricity is responsible for ~34% of corporate footprint; rooftop solar yields highest abatement ROI.',
+            'Scope 1 diesel combustion experienced a 5.7% operational degradation due to vehicle age.',
+            'Raw cotton supplier achieved lower footprint through renewable spinning operations.'
+          ],
+          actionableRecommendations: [
+            'Install 450 kWp solar PV array on warehouse rooftop (Scope 2 abatement: 31.5 t CO2e).',
+            'Enforce dynamic route scheduling and deploy commercial electric vans (Scope 1 abatement: 13.0 t CO2e).'
+          ]
+        }
       }
     };
   }
 
   // 5. DASHBOARD / TREND
   if (cleanUrl.startsWith('/dashboard/trend')) {
+    // Group all activities by period into timeline
+    const periodMap = new Map<string, any>();
+    state.activities.forEach(a => {
+      if (!periodMap.has(a.period)) {
+        periodMap.set(a.period, {
+          period: a.period,
+          scope1Kg: 0,
+          scope2Kg: 0,
+          scope3Kg: 0,
+          totalKg: 0,
+          baselineTotalKg: 0,
+          correctedTotalKg: 0,
+          adjustmentKg: 0
+        });
+      }
+      const p = periodMap.get(a.period);
+      p.baselineTotalKg += a.baselineKg || 0;
+      p.correctedTotalKg += a.correctedKg || 0;
+      p.totalKg += a.correctedKg || 0;
+      p.adjustmentKg = p.correctedTotalKg - p.baselineTotalKg;
+
+      if (a.activityType === 'diesel') p.scope1Kg += a.correctedKg || 0;
+      else if (a.activityType === 'electricity') p.scope2Kg += a.correctedKg || 0;
+      else p.scope3Kg += a.correctedKg || 0;
+    });
+
+    const timeline = Array.from(periodMap.values()).sort((a, b) => a.period.localeCompare(b.period));
+
     return {
       success: true,
-      data: [
-        { period: '2026-03', scope1Kg: 46000, scope2Kg: 91000, scope3Kg: 135000, totalKg: 272000, baselineTotalKg: 268000 },
-        { period: '2026-04', scope1Kg: 48000, scope2Kg: 94000, scope3Kg: 140000, totalKg: 282000, baselineTotalKg: 277000 },
-        { period: '2026-05', scope1Kg: 50000, scope2Kg: 99000, scope3Kg: 144000, totalKg: 293000, baselineTotalKg: 287000 },
-        { period: '2026-06', scope1Kg: 53000, scope2Kg: 108000, scope3Kg: 149000, totalKg: 310000, baselineTotalKg: 304000 },
-        { period: '2026-07', scope1Kg: 51456, scope2Kg: 98200, scope3Kg: 148000, totalKg: 297656, baselineTotalKg: 292000 },
-        { period: '2026-08', scope1Kg: 52140, scope2Kg: 104850, scope3Kg: 151990, totalKg: 308980, baselineTotalKg: 303312 }
-      ]
+      data: {
+        timeline,
+        totalPeriods: timeline.length
+      }
     };
   }
 
   // 6. DASHBOARD / SEED-DEMO
   if (cleanUrl === '/dashboard/seed-demo') {
-    state.activities = defaultActivities;
+    const fresh24MonthActivities = generate24MonthData();
+    state.activities = fresh24MonthActivities;
     saveMockState(state);
+
     return {
       success: true,
-      message: 'Demo activities successfully loaded into CarbonIQ'
+      message: 'Multi-year demo operational dataset loaded and calculated successfully.',
+      data: {
+        recordsCreated: fresh24MonthActivities.length,
+        periodsCovered: 24,
+        latestPeriod: '2026-08'
+      }
     };
   }
 
@@ -437,11 +541,19 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
         const item = state.activities.find(a => a._id === match[1]);
         return { success: true, data: item };
       }
+
+      // Filter by period if passed
+      const periodMatch = cleanUrl.match(/period=([0-9]{4}-[0-9]{2})/);
+      let filtered = state.activities;
+      if (periodMatch) {
+        filtered = filtered.filter(a => a.period === periodMatch[1]);
+      }
+
       return {
         success: true,
         data: {
-          activities: state.activities,
-          pagination: { total: state.activities.length, page: 1, limit: 50, pages: 1 }
+          activities: filtered,
+          pagination: { total: filtered.length, page: 1, limit: 100, pages: 1 }
         }
       };
     }
@@ -690,6 +802,5 @@ export const handleMockRequest = async (method: string, url: string, data?: any)
     }
   }
 
-  // Default fallback for any other GET/POST
   return { success: true, data: [] };
 };

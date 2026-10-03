@@ -60,11 +60,16 @@ export const Dashboard: React.FC = () => {
         api.get('/dashboard/trend')
       ]);
 
-      setSummary(sumResp.data.data.summary);
-      setComparison(sumResp.data.data.comparison);
-      setExplainability(sumResp.data.data.explainability);
-      setInsights(sumResp.data.data.insights);
-      setTimeline(trendResp.data.data.timeline || []);
+      const sumData = sumResp.data?.data;
+      const calcSummary = sumData?.summary || (sumData?.totalKg !== undefined ? sumData : null);
+      setSummary(calcSummary);
+      setComparison(sumData?.comparison || null);
+      setExplainability(sumData?.explainability || null);
+      setInsights(sumData?.insights || null);
+
+      const trendData = trendResp.data?.data;
+      const tl = trendData?.timeline || (Array.isArray(trendData) ? trendData : []);
+      setTimeline(tl);
     } catch (e: any) {
       console.error('Error loading dashboard:', e);
     } finally {
@@ -74,6 +79,9 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardData();
+    const handleUpdate = () => fetchDashboardData();
+    window.addEventListener('carboniq-data-updated', handleUpdate);
+    return () => window.removeEventListener('carboniq-data-updated', handleUpdate);
   }, [currentPeriod]);
 
   if (loading) {
@@ -89,8 +97,16 @@ export const Dashboard: React.FC = () => {
         description="Enter manual activity readings, upload a CSV consignment log, or seed the 24-month demo dataset to explore CarbonIQ intelligence."
         onAddClick={() => navigate('/app/data-entry')}
         onSeedClick={async () => {
-          await api.post('/dashboard/seed-demo');
-          window.location.reload();
+          setLoading(true);
+          try {
+            await api.post('/dashboard/seed-demo');
+            window.dispatchEvent(new Event('carboniq-data-updated'));
+            await fetchDashboardData();
+          } catch (err) {
+            console.error('Failed to seed:', err);
+          } finally {
+            setLoading(false);
+          }
         }}
       />
     );
